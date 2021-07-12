@@ -13,7 +13,7 @@ dt = datetime.datetime.today().strftime('%Y%m%d')
 # 워드클라우드 버튼 기간 설정(일주일전 ~ 현재)
 bf_dt = (datetime.datetime.today() - datetime.timedelta(days=7)).strftime('%Y%m%d')
 btn_dt_index = pd.date_range(start=bf_dt,end=dt).map(lambda x : str(x).replace(' 00:00:00', ''))
-# dt = '20210630'
+
 
 @app.route('/')
 def chart():
@@ -133,12 +133,6 @@ def chart():
                            ,bit_binance_dict=bit_binance_dict, bit_binance_gg_dict=bit_binance_gg_dict
                            ,bit_upbit_dict=bit_upbit_dict, bit_upbit_gg_dict=bit_upbit_gg_dict)
 
-
-# @app.route('/result', methods = ['POST', 'GET']) # 접속 url
-# def result():
-#    if request.method == 'POST':
-#       result = request.form
-#       return render_template("result.html",result = result)
 
 if __name__ == '__main__':
    app.run(debug = True)
