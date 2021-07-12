@@ -25,8 +25,11 @@ from urllib import parse
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
+import webbrowser
 
-
+# 업비트 및 바이낸스 관련 패키지
+import ccxt
+import pyupbit
 ##############################################################################################
 # 주제 : 암호 화폐 관련 기사의 텍스트 마이닝을 통한 동향 및 전망 분석
 # 사이트
@@ -138,6 +141,7 @@ def investing_crawling(p_file_path):
             soup = BeautifulSoup(html, 'html.parser')  # bs4 형태로 전환
             # 기사제목
             title = soup.find('h1', {'class': 'articleHeader'}).get_text()
+            title = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', title)
             title = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', title)
             news_dict['title'].append(title)
             # 날짜 포맷 : 7 시간 전 (0000년 00월 00일 01:39) => YYYY-mm-dd %HH:%MM:%SS(년-월-일 시-분-초)
@@ -150,6 +154,7 @@ def investing_crawling(p_file_path):
             content_list = list()
             for content in content_info:
                 ctt = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', content.get_text())
+                ctt = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', ctt)
                 print('기사내용 :', ctt)
                 content_list.append(ctt)
             news_dict['content'].append(content_list)
@@ -183,7 +188,9 @@ def naver_crawling(p_file_path, p_start_date):
         '뉴시스': '1003'
     }
     today_dt = datetime.datetime.today()  # 오늘 날짜(적재 날짜)
-    dt = today_dt.strftime(format='%Y.%m.%d')  # 현재 시각
+    dt = today_dt.strftime(format='%Y.%m.%d')  # 현재 시간
+    ds = today_dt - datetime.timedelta(days=30) # 30일 전날짜
+    ds = ds.strftime(format='%Y.%m.%d') # 크롤링 시작 시간
     upload_fnm = 'naver_crawling.csv'  # 적재 파일명
     f_list = os.path.splitext(p_file_path + upload_fnm)
     upload_fnm = f_list[0] + '_' + today_dt.strftime(format='%Y%m%d') + f_list[1]
@@ -210,7 +217,7 @@ def naver_crawling(p_file_path, p_start_date):
                     , 'photo': '0'
                     , 'field': '0'
                     , 'pd': '3'
-                    , 'ds': p_start_date  # 시작날짜 => 오늘날짜
+                    , 'ds': ds  # 시작날짜 => 오늘날짜
                     , 'de': dt  # 종료날짜 => 오늘날짜
                     , 'docid': ''
                     , 'related': '0'
@@ -243,6 +250,9 @@ def naver_crawling(p_file_path, p_start_date):
                         # 뉴스 기사 제목
                         title = article_html.find('div', {'class': 'article_tbx'}).find('h1').get_text()
                         title = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', title)
+                        title = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', title)
+
+
                         news_dict['title'].append(title)  # 기사 제목 담기
 
                         # 등록날짜
@@ -254,7 +264,8 @@ def naver_crawling(p_file_path, p_start_date):
 
                         # 기사내용
                         content_info = article_html.find('div', {'id': 'textBody'}).text
-                        ctt_list = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', content_info).split('\n')
+                        content_info = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', content_info)
+                        ctt_list = re.sub('[\u2000-\u9999\n\t\r\ufeff]', '', content_info).split('\n')
                         ctt_list = [x for x in ctt_list if x != '']  # 줄바꿈 생략
                         news_dict['content'].append(ctt_list)
 
@@ -288,7 +299,7 @@ def naver_crawling(p_file_path, p_start_date):
     print('크롤링 종료')
     return
 # 크롤링 날짜 설정
-start_date = '20210601'
+start_date = '20210608'
 naver_crawling(p_file_path=file_path, p_start_date=start_date)
 
 ########################################################################
@@ -356,6 +367,7 @@ def coindesk_crawling(p_file_path):
             # 기사 제목
             title = html_info.find('div', {'class': 'article-head-title'}).text
             title = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', title)
+            title = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', title)
             news_dict['title'].append(title)
 
 
@@ -372,6 +384,7 @@ def coindesk_crawling(p_file_path):
             for p_info in html_info.find('div', {'id': 'article-view-content-div'}).find_all('p'):
                 print(p_info.text)
                 content = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', p_info.text)
+                content = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', content)
                 ctt_list.append(content)
 
             ctt_list = [x for x in ctt_list if x != '']
@@ -405,7 +418,7 @@ def coindesk_crawling(p_file_path):
 coindesk_crawling(p_file_path=file_path)
 
 ########################################################################
-# 3. Decenter.kr 뉴스 => https://decenter.kr/NewsList/GZ03
+# 4. Decenter.kr 뉴스 => https://decenter.kr/NewsList/GZ03
 # 출처 : Decenter
 # 디센터(블록체인) 크롤링 함수
 
@@ -453,11 +466,13 @@ def decenter_crawling(p_file_path):
 
             # 기사 제목
             title = atc_info.find('h2').text
-            title = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', title)
+            title = re.sub('[\u2000-\u9999\n\t\r\ufeff]', '', title)
+            title = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', title)
             news_dict['title'].append(title)
             # 기사 내용
             c_list = soup.find_all('br')
-            c_list = list(map(lambda x: re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', x.text), c_list))
+            c_list = list(map(lambda x: re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0'
+                                               '\xe9\xa5\x80\x9a\xf3]', '', x.text), c_list))
             c_list = [x for x in c_list if x != '']
             news_dict['content'].append(c_list)
             # 등록 일시
@@ -503,12 +518,14 @@ def decenter_crawling(p_file_path):
 
                 # 기사 제목
                 title = atc_info.find('h2').text
-                title = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', title)
+                title = re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff\xf3]', '', title)
+                title = re.sub('[\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', title)
                 news_dict['title'].append(title)
 
                 # 기사 내용
                 c_list = soup.find_all('br')
-                c_list = list(map(lambda x: re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff]', '', x.text), c_list))
+                c_list = list(map(lambda x: re.sub('[\u2000-\u9999\n\t\r\xa0\ufeff\xa0\x82\xa1\xa2\xa3\xa4\x87\xb5'
+                                                   '\xd6\xe0\xe9\xa5\x80\x9a\xf3]', '', x.text), c_list))
                 c_list = [x for x in c_list if x != '']
                 news_dict['content'].append(c_list)
                 print('기사 제목 :', title, '=> 크롤링 성공')
@@ -546,8 +563,8 @@ decenter_crawling(p_file_path=file_path)
 
 
 ########################################################################
-# 4. investing.com
-def bitcoin_info_crawling(p_file_path, p_start_date, p_end_date):
+# 5. 바이낸스 기준 비트코인 일별 시세 크롤링
+def binance_info_crawling(p_file_path, p_start_date, p_end_date):
     main_url = 'https://kr.investing.com/crypto/bitcoin/historical-data' # 비트코인 데이터 제공 사이트
     driver = webdriver.Chrome(p_file_path + 'chromedriver.exe')
     driver.get(main_url)  # url 접속
@@ -602,10 +619,10 @@ def bitcoin_info_crawling(p_file_path, p_start_date, p_end_date):
             all_con_list.append(con_list)
             con_list = list()  # 리스트 초기화
 
-    bit_df = pd.DataFrame(data=all_con_list, columns=['날짜', '종가', '오픈', '고가', '저가', '거래량', '변동'])
+    bit_df = pd.DataFrame(data=all_con_list, columns=['등록시간', '종가', '오픈', '고가', '저가', '거래량', '변동'])
     bit_df = bit_df.applymap(lambda x: x.replace(',', ''))
     # 비트코인 시세 및 동향 데이터 전처리
-    bit_df['날짜'] = bit_df['날짜'].map(lambda x: re.sub('[년월일 ]', '', x))
+    bit_df['등록시간'] = bit_df['등록시간'].map(lambda x: re.sub('[년월일 ]', '', x))
     # 거래량(K), 변동(%), ADJ_조정 단위처리
     bit_df = bit_df.astype({'종가': float, '오픈': float, '저가': float, '고가': float})
     bit_df['거래량'] = bit_df['거래량'].apply(lambda x: float(x.replace('K', '')) * 1000)
@@ -615,7 +632,7 @@ def bitcoin_info_crawling(p_file_path, p_start_date, p_end_date):
     # RSI 지표 산출
     # bit_df_2 = bit_df.set_index(pd.DatetimeIndex(bit_df['날짜'].values))
     bit_df['ADJ_종가'] = bit_df['종가']
-    bit_df = bit_df.sort_values(['날짜'], ascending=True)
+    bit_df = bit_df.sort_values(['등록시간'], ascending=True)
     delta = bit_df['ADJ_종가'].diff(1)
     delta = delta.dropna()
     up = delta.copy()
@@ -637,6 +654,52 @@ def bitcoin_info_crawling(p_file_path, p_start_date, p_end_date):
 
         bit_df['RSI_'+str(p)] = rsi
 
+    ### 일목균형표 ###
+
+    # 전환선(기간 : 9일)
+    nine_high = bit_df['고가'].rolling(window=9).max()
+    nine_low = bit_df['저가'].rolling(window=9).min()
+    bit_df['전환선'] = (nine_high + nine_low) / 2  # 전환선
+
+    # 기준선(기간 : 26일)
+    p_ts_high = bit_df['고가'].rolling(window=26).max()
+    p_ts_low = bit_df['저가'].rolling(window=26).min()
+    bit_df['기준선'] = (p_ts_high + p_ts_low) / 2
+
+    # 선행스팬 1({전환선 + 기준선}/2, 26일 선행하여 배치)
+    bit_df['선행스팬_1'] = ((bit_df['전환선'] + bit_df['기준선']) / 2).shift(26)
+
+    # 선행스팬 2(52일 선행하여 배치)
+    p_ft_high = bit_df['고가'].rolling(window=52).max()
+    p_ft_min = bit_df['저가'].rolling(window=52).min()
+    bit_df['선행스팬_2'] = ((p_ft_high + p_ft_min) / 2).shift(26)
+
+    # 후행스팬
+    bit_df['후행스팬'] = bit_df['종가'].shift(-26)
+
+    # 분석 기법 1 : '구름' => 선행스팬 1, 선행스팬 2의 사이!!
+    # 분석 기법 2 : 전환선과 기준선의 관계 => 1. 기준선(26일, 중기) 중기적인 추세를 얘기하고 상승, 하락 추세를 어느정도 판별
+    #                                       2. 전환선(9일, 단기) 이 기준선을 역전하는가??? => 중기 및 단기 상승, 하락 추세를 결정
+    #
+
+    # 가격 값 전체에 대한 평균
+    df_size = bit_df[['종가', '오픈', '고가', '저가']].shape[0] * bit_df[['종가', '오픈', '고가', '저가']].shape[1]
+    avg_value = bit_df[['종가', '오픈', '고가', '저가']].sum().sum() / df_size
+    dv_max_value = abs(np.max(bit_df[['종가', '오픈', '고가', '저가']] - avg_value).max())
+
+    # SCALING => 편차 / 편차의 최대 절대값 (산출값 <= 1 )
+    scale_df = (bit_df[['종가', '오픈', '고가', '저가', '전환선', '기준선', '선행스팬_1', '선행스팬_2', '후행스팬']] - avg_value) / dv_max_value
+    scale_df.columns = [x + '_SCALING' for x in scale_df.columns]
+
+    bit_df = pd.merge(bit_df, scale_df, left_index=True, right_index=True, how='left')
+    # 컬럼 재배치 및 수정
+    bit_df = bit_df[
+        ['등록시간', '저가', '오픈', '종가', '고가', '거래량', '저가_SCALING', '오픈_SCALING', '종가_SCALING', '고가_SCALING', 'RSI_3',
+         'RSI_7', 'RSI_14', '전환선_SCALING', '기준선_SCALING', '선행스팬_1_SCALING', '선행스팬_2_SCALING', '후행스팬_SCALING']]
+
+    # 출처 컬럼 생성
+    bit_df['출처'] = 'binance'
+
     # 크롤링 코드
     today_dt = datetime.datetime.today().strftime(format='%Y%m%d')  # 오늘 날짜(적재 날짜)
     upload_fnm = 'bitcoin_info.csv'  # 적재 파일명
@@ -655,12 +718,145 @@ def bitcoin_info_crawling(p_file_path, p_start_date, p_end_date):
 
     print('비트코인 정보 데이터 크롤링 및 적재 완료')
     return
-# 크롤링 날짜 설정
-start_date = '2021/06/01'
-end_date = '2021/07/07'
-bitcoin_info_crawling(p_file_path=file_path, p_start_date=start_date, p_end_date=end_date)
+
+# 기본 세팅 기간 99일 전(오늘 꺼까지 포함하면 총 100일)
+bd = (datetime.datetime.today() - datetime.timedelta(days=99)).strftime('%Y/%m/%d')
+td = datetime.datetime.today().strftime('%Y/%m/%d')
+binance_info_crawling(p_file_path=file_path, p_start_date=bd, p_end_date=td)
 
 print('전체 크롤링 완료')
 
 ########################################################################
+# 6. 업비트 API를 활용한 데이터 수집
+########################################################################
+def upbit_api(p_file_path, p_interval):
+    print('#' * 80)
+    print('#'*30, '업비트 API 데이터 수집', '#'*30)
+    ac_key = 'BFQ8XewRvrFJTQcsCDrAuGCdxVRmH9Ixphdezydf'
+    sc_key = 'yhx6TyxAdZJxBZtSMBJyTeRC8pF4PLpuN0YGbwTJ'
+    upbit = pyupbit.Upbit(ac_key, sc_key)
+    # upbit.get_avg_buy_price('KRW-BTC') - pyupbit.get_current_price(['KRW-BTC'])['KRW-BTC']
+    # upbit.get_amount()
+    # upbit.get_balance('KRW-BTC') # 코인 보유량
+
+    # 업비트 코인별 현재 가격 조회
+    # pyupbit.get_current_price(['KRW-BTC', 'KRW-ETH', 'KRW-XRP', 'KRW-CBK'])
+    # pyupbit.get_ohlcv()
+    # 시가, 고가, 저가, 종가, 거래량(volume)
+    # option => ticker : 조회를 원하는 심볼값, interval : 조회 하고자하는 차트 종류(분, 일..), count : 조회 데이터 건수 (캔들 개수
+    # interval 값 예시 : day, minute1, minute5, minute10, minute15, minute30, minute60, minute240, week, month
+    # 모델 설계 : 현재 시간 ~ 1달(5분단위 데이터 수집)
+
+    # 우선 일단위로 해서 바이낸스 차트와 동일하게
+    # 기본 세팅 기간 100일
+    #     bd = (datetime.datetime.today() - datetime.timedelta(days=30)).strftime('%Y%m%d')
+    #     td = datetime.datetime.today().strftime('%Y%m%d')
+
+    upbit_df = pyupbit.get_ohlcv(ticker='KRW-BTC', interval=p_interval, count=100) # count +1
+    # 컬럼명 수정
+    upbit_df.columns =['오픈','고가','저가','종가','거래량','value']
+
+    if interval == 'day':
+        upbit_df['등록시간'] = list(map(lambda x: x.strftime(format='%Y%m%d'), list(upbit_df.index)))
+
+    ### RSI 지표 산출 ###
+    # bit_df_2 = bit_df.set_index(pd.DatetimeIndex(bit_df['날짜'].values))
+    upbit_df.sort_index(ascending=True, inplace=True) # 인덱스(날짜 및 시간) 오름차순 정렬
+    pd.to_datetime(list(upbit_df.index), format='%Y-%m-%d')
+    upbit_df['ADJ_종가'] = upbit_df['종가']
+    delta = upbit_df['ADJ_종가'].diff(1) # 현재날짜-전날짜 종가
+
+    # RSI를 산출하기위한 데이터프레임 선언
+    delta = delta.dropna()
+    up = delta.copy()
+    down = delta.copy()
+    # 전날 대비 가격 상승 및 하락폭 산출
+    up[up < 0] = 0 # 전날 대비 가격 상승폭
+    down[down > 0] = 0 # 전날 대비 가격 하락폭
+
+    # 기간 가져오기
+    period_list = [3, 7, 14]  # 3, 7, 14일 평균값을 구하기 위한 일정 기간 세팅, rolling 함수는 이동평균함수
+    for p in period_list:
+
+        avg_gain = up.rolling(window=p).mean() # 상승 평균
+        avg_loss = abs(down.rolling(window=p).mean()) # 하락 평균
+        # print(p, avg_gain, avg_loss)
+        # Calculate the RSI
+        # Calculate the Relative Strength (RS)
+        rs = avg_gain / avg_loss # 일정기간동안의 상승평균 / 하락평균
+        rsi = 1.0 - (1.0 / (1.0 + rs)) # rs 값과 rs index와 비례관계
+        upbit_df['RSI_'+str(p)] = rsi # rsi 컬럼 생성
+
+    ### 일목균형표 ###
+
+    # 전환선(기간 : 9일)
+    nine_high = upbit_df['고가'].rolling(window=9).max()
+    nine_low = upbit_df['저가'].rolling(window=9).min()
+    upbit_df['전환선'] = (nine_high + nine_low)/2 # 전환선
+
+    # 기준선(기간 : 26일)
+    p_ts_high =  upbit_df['고가'].rolling(window=26).max()
+    p_ts_low =  upbit_df['저가'].rolling(window=26).min()
+    upbit_df['기준선'] = (p_ts_high + p_ts_low)/2
+
+    # 선행스팬 1({전환선 + 기준선}/2, 26일 선행하여 배치)
+    upbit_df['선행스팬_1'] = ((upbit_df['전환선'] + upbit_df['기준선']) / 2).shift(26)
+
+    # 선행스팬 2(52일 선행하여 배치)
+    p_ft_high = upbit_df['고가'].rolling(window=52).max()
+    p_ft_min = upbit_df['저가'].rolling(window=52).min()
+    upbit_df['선행스팬_2'] = ((p_ft_high + p_ft_min) / 2).shift(26)
+
+    # 후행스팬
+    upbit_df['후행스팬'] = upbit_df['종가'].shift(-26)
+
+    # 분석 기법 1 : '구름' => 선행스팬 1, 선행스팬 2의 사이!!
+    # 분석 기법 2 : 전환선과 기준선의 관계 => 1. 기준선(26일, 중기) 중기적인 추세를 얘기하고 상승, 하락 추세를 어느정도 판별
+    #                                       2. 전환선(9일, 단기) 이 기준선을 역전하는가??? => 중기 및 단기 상승, 하락 추세를 결정
+    #
+
+
+    # 가격 값 전체에 대한 평균
+    df_size = upbit_df[['종가', '오픈', '고가', '저가']].shape[0] * upbit_df[['종가', '오픈', '고가', '저가']].shape[1]
+    avg_value = upbit_df[['종가', '오픈', '고가', '저가']].sum().sum() / df_size
+    dv_max_value = abs(np.max(upbit_df[['종가', '오픈', '고가', '저가']] - avg_value).max())
+
+    # SCALING => 편차 / 편차의 최대 절대값 (산출값 <= 1 )
+    scale_df = (upbit_df[['종가', '오픈', '고가', '저가', '전환선', '기준선', '선행스팬_1', '선행스팬_2', '후행스팬']] - avg_value) / dv_max_value
+    scale_df.columns = [x + '_SCALING' for x in scale_df.columns]
+
+    upbit_df = pd.merge(upbit_df, scale_df, left_index=True, right_index=True, how='left')
+    # 컬럼 재배치 및 수정
+    upbit_df = upbit_df[
+        ['등록시간','저가','오픈','종가','고가','거래량','저가_SCALING','오픈_SCALING','종가_SCALING','고가_SCALING','RSI_3',
+         'RSI_7', 'RSI_14','전환선_SCALING', '기준선_SCALING', '선행스팬_1_SCALING', '선행스팬_2_SCALING', '후행스팬_SCALING']]
+
+    # 출처 컬럼 생성
+    upbit_df['출처'] = 'upbit'
+
+    # 데이터 생성 및 적재
+    today_dt = datetime.datetime.today().strftime(format='%Y%m%d')  # 오늘 날짜(적재 날짜)
+    upload_fnm = 'bitcoin_info.csv'  # 적재 파일명
+    f_list = os.path.splitext(p_file_path + upload_fnm)
+    upload_fnm = f_list[0] + '_' + today_dt + f_list[1]
+
+    # 딕셔너리 데이터 프레임에 적재
+    if os.path.isfile(upload_fnm) == False:
+        print('업비트 정보 파일 미존재 => 파일생성 및 적재')
+        upbit_df.to_csv(upload_fnm, index=False, mode='w', encoding='cp949')
+    else:
+        print('업비트 정보 파일 존재 => 적재')
+        upbit_df.to_csv(upload_fnm, index=False, mode='a', header=False, encoding='cp949')
+    print('적재완료')
+    print('#' * 80)
+
+# 업비트 기준 : 시가, 종가, 고가, 저가 (시간 단위 기준 결정)
+interval = 'day'
+upbit_api(p_file_path=file_path, p_interval=interval)
+
+
+
+
+
+
 
